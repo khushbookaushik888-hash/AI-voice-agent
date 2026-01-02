@@ -1,0 +1,7 @@
+fastapi[all]
+uvicorn
+pipecat-ai[daily,silero,google,openai]==0.0.52
+python-dotenv
+websockets
+twilio
+fuzzywuzzy
