@@ -1,0 +1,187 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useSession } from "@clerk/nextjs";
+import { Plus, Trash } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Citizen } from "@/lib/types";
+import { CitizenType } from "@/lib/zod";
+
+const CitizensList = () => {
+  const user = useSession();
+  const userId = user.session?.id;
+  const [citizens, setCitizens] = useState<Citizen[]>([]);
+  const [error, setError] = useState<string>(
+    `We cannot do phone calls at the moment due to unavailability of twilio paid api. 
+    Currently voice agent works only with registered phone numbers on the twilio dashboard.
+    Please click on the "Call the agent" button to get redirected to a web based ai agent with all the functionalities.`
+  );
+
+  const addNewCitizen = async (newCitizen: CitizenType) => {
+    try {
+      await fetch("/api/citizen", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(newCitizen),
+      });
+
+      fetchCitizens();
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong");
+    }
+  };
+
+  const deleteCitizen = async (deletedCitizen: Citizen) => {
+    try {
+      await fetch("/api/citizen", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(deletedCitizen),
+      });
+
+      fetchCitizens();
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong");
+    }
+  };
+
+  const fetchCitizens = async () => {
+    try {
+      const res = await fetch("/api/citizen");
+      const data = await res.json();
+      setCitizens(data);
+    } catch (err) {
+      console.error(err);
+      setError("Something went wrong");
+    }
+  };
+
+  useEffect(() => {
+    fetchCitizens();
+  }, []);
+
+  if (!user.isLoaded) {
+    return (
+      <div className="flex h-[50dvh] items-center justify-center">
+        <div className="size-10 animate-spin rounded-full border-b-2 border-t-2 border-brand-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-16 px-2">
+      <div className="mb-4 flex w-full flex-row-reverse items-center justify-between px-1">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className="flex items-center gap-x-2 bg-brand-foreground text-lg text-black hover:bg-brand-foreground/80">
+              Add new citizen
+              <Plus className="size-4" />
+            </Button>
+          </DialogTrigger>
+
+          <DialogContent className="border-brand-foreground bg-[#232323] text-brand-foreground">
+            <form
+              action={(formData: FormData) => {
+                const name = formData.get("name") as string;
+                const status = formData.get("status") as string;
+                const number = parseInt(formData.get("number") as string);
+                addNewCitizen({ name, status, number });
+              }}
+            >
+              <DialogTitle className="text-2xl">Add new citizen</DialogTitle>
+              <label id="name">
+                Citizen Name
+                <Input
+                  type="text"
+                  placeholder="Citizen name"
+                  name="name"
+                  id="name"
+                  className="bg-[#232323]"
+                />
+              </label>
+
+              <label>
+                Status/Notes
+                <Textarea
+                  placeholder="Status/Notes"
+                  id="status"
+                  name="status"
+                  className="bg-[#232323]"
+                />
+              </label>
+
+              <label id="number">
+                Phone Number
+                <Input
+                  type="tel"
+                  placeholder="Phone number"
+                  id="number"
+                  name="number"
+                  pattern="[0-9]{10}"
+                  className="bg-[#232323]"
+                />
+              </label>
+
+              <Button className="mt-4 w-full bg-brand-foreground text-brand-bg hover:bg-brand-foreground/80">
+                Save & start calls
+              </Button>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="rounded-lg bg-[#232323] py-5">
+        <div className="grid grid-cols-12 items-center gap-4 px-1 text-center text-xl text-brand-foreground">
+          <p className="col-span-1">No.</p>
+          <p className="col-span-2">Name</p>
+          <p className="col-span-4">Status</p>
+          <p className="col-span-2">Phone</p>
+        </div>
+        {citizens.map((citizen, no) => (
+          <div
+            key={citizen.id}
+            className="mt-2 grid grid-cols-12 items-center gap-4 truncate text-center text-brand-foreground transition-all delay-100 duration-100 hover:bg-black/20"
+          >
+            <p className="col-span-1 px-1">{no + 1}</p>
+            <p className="col-span-2 truncate px-1">{citizen.name}</p>
+            <p className="col-span-4 truncate px-1">{citizen.status}</p>
+            <p className="col-span-2 px-1">{citizen.number}</p>
+            <div className="col-span-1 flex items-center justify-center">
+              <Trash
+                className="size-4 cursor-pointer"
+                onClick={() => deleteCitizen(citizen)}
+              />
+            </div>
+            <a
+              target="_blank"
+              href={"https://nsuthack-backend.vercel.app/" + citizen.id}
+              className="col-span-2 text-center"
+            >
+              Call the agent
+            </a>
+          </div>
+        ))}
+      </div>
+
+      {error && <p className="mt-4 text-center text-red-500">{error}</p>}
+    </div>
+  );
+};
+
+export default CitizensList;
